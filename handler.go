@@ -69,7 +69,7 @@ func newEventHandler(opts *options, wout io.Writer, werr io.Writer) (*eventHandl
 	return handler, nil
 }
 
-func writeJUnitFile(filename string, execution *testjson.Execution) error {
+func writeJUnitFile(filename string, execution *testjson.Execution, strip int, prefix string) error {
 	if filename == "" {
 		return nil
 	}
@@ -83,5 +83,5 @@ func writeJUnitFile(filename string, execution *testjson.Execution) error {
 		}
 	}()
 
-	return junitxml.Write(junitFile, execution)
+	return junitxml.Write(junitFile, execution, strip, prefix)
 }

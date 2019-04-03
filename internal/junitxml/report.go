@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
@@ -63,21 +64,39 @@ type JUnitFailure struct {
 }
 
 // Write creates an XML document and writes it to out.
-func Write(out io.Writer, exec *testjson.Execution) error {
-	return errors.Wrap(write(out, generate(exec)), "failed to write JUnit XML")
+func Write(out io.Writer, exec *testjson.Execution, strip int, prefix string) error {
+	return errors.Wrap(write(out, generate(exec, strip, prefix)), "failed to write JUnit XML")
 }
 
-func generate(exec *testjson.Execution) JUnitTestSuites {
+func stripPathElements(pkgname string, strip int) string {
+	if strip == 0 {
+		return pkgname
+	}
+	elems := strings.Split(pkgname, "/")
+	if strip > len(elems) {
+		return ""
+	}
+	return path.Join(elems[strip:]...)
+}
+
+func mungePackageName(n string, strip int, prefix string) string {
+	n = stripPathElements(n, strip)
+	n = path.Join(prefix, n)
+	return n
+}
+
+func generate(exec *testjson.Execution, strip int, prefix string) JUnitTestSuites {
 	version := goVersion()
 	suites := JUnitTestSuites{}
 	for _, pkgname := range exec.Packages() {
 		pkg := exec.Package(pkgname)
+		pkgname = mungePackageName(pkgname, strip, prefix)
 		junitpkg := JUnitTestSuite{
 			Name:       pkgname,
 			Tests:      pkg.Total,
 			Time:       formatDurationAsSeconds(pkg.Elapsed()),
 			Properties: packageProperties(version),
-			TestCases:  packageTestCases(pkg),
+			TestCases:  packageTestCases(pkg, strip, prefix),
 			Failures:   len(pkg.Failed),
 		}
 		suites.Suites = append(suites.Suites, junitpkg)
@@ -115,13 +134,13 @@ func goVersion() string {
 	return strings.TrimPrefix(strings.TrimSpace(string(out)), "go version ")
 }
 
-func packageTestCases(pkg *testjson.Package) []JUnitTestCase {
+func packageTestCases(pkg *testjson.Package, strip int, prefix string) []JUnitTestCase {
 	cases := []JUnitTestCase{}
 
 	if pkg.TestMainFailed() {
 		jtc := newJUnitTestCase(testjson.TestCase{
 			Test: "TestMain",
-		})
+		}, strip, prefix)
 		jtc.Failure = &JUnitFailure{
 			Message:  "Failed",
 			Contents: pkg.Output(""),
@@ -130,7 +149,7 @@ func packageTestCases(pkg *testjson.Package) []JUnitTestCase {
 	}
 
 	for _, tc := range pkg.Failed {
-		jtc := newJUnitTestCase(tc)
+		jtc := newJUnitTestCase(tc, strip, prefix)
 		jtc.Failure = &JUnitFailure{
 			Message:  "Failed",
 			Contents: pkg.Output(tc.Test),
@@ -139,21 +158,21 @@ func packageTestCases(pkg *testjson.Package) []JUnitTestCase {
 	}
 
 	for _, tc := range pkg.Skipped {
-		jtc := newJUnitTestCase(tc)
+		jtc := newJUnitTestCase(tc, strip, prefix)
 		jtc.SkipMessage = &JUnitSkipMessage{Message: pkg.Output(tc.Test)}
 		cases = append(cases, jtc)
 	}
 
 	for _, tc := range pkg.Passed {
-		jtc := newJUnitTestCase(tc)
+		jtc := newJUnitTestCase(tc, strip, prefix)
 		cases = append(cases, jtc)
 	}
 	return cases
 }
 
-func newJUnitTestCase(tc testjson.TestCase) JUnitTestCase {
+func newJUnitTestCase(tc testjson.TestCase, strip int, prefix string) JUnitTestCase {
 	return JUnitTestCase{
-		Classname: tc.Package,
+		Classname: mungePackageName(tc.Package, strip, prefix),
 		Name:      tc.Test,
 		Time:      formatDurationAsSeconds(tc.Elapsed),
 	}

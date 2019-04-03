@@ -80,6 +80,10 @@ Formats:
 	flags.StringVar(&opts.junitFile, "junitfile",
 		lookEnvWithDefault("GOTESTSUM_JUNITFILE", ""),
 		"write a JUnit XML file")
+	flags.IntVar(&opts.junitStripLevels, "junitfile-striplevels", 0,
+		"number of path elements to strip from package names in junit output")
+	flags.StringVar(&opts.junitPrefix, "junitfile-prefix", "",
+		"prefix to add to path elements in junit output")
 	flags.BoolVar(&opts.noColor, "no-color", false, "disable color output")
 	flags.Var(opts.noSummary, "no-summary",
 		fmt.Sprintf("do not print summary of: %s", testjson.SummarizeAll.String()))
@@ -95,15 +99,17 @@ func lookEnvWithDefault(key, defValue string) string {
 }
 
 type options struct {
-	args       []string
-	format     string
-	debug      bool
-	rawCommand bool
-	jsonFile   string
-	junitFile  string
-	noColor    bool
-	noSummary  *noSummaryValue
-	version    bool
+	args             []string
+	format           string
+	debug            bool
+	rawCommand       bool
+	jsonFile         string
+	junitFile        string
+	junitStripLevels int
+	junitPrefix      string
+	noColor          bool
+	noSummary        *noSummaryValue
+	version          bool
 }
 
 func setupLogging(opts *options) {
@@ -143,7 +149,7 @@ func run(opts *options) error {
 	if err := testjson.PrintSummary(out, exec, opts.noSummary.value); err != nil {
 		return err
 	}
-	if err := writeJUnitFile(opts.junitFile, exec); err != nil {
+	if err := writeJUnitFile(opts.junitFile, exec, opts.junitStripLevels, opts.junitPrefix); err != nil {
 		return err
 	}
 	return goTestProc.cmd.Wait()
