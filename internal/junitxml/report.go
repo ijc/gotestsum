@@ -82,6 +82,17 @@ func stripPathElements(pkgname string, strip int) string {
 func mungePackageName(n string, strip int, prefix string) string {
 	n = stripPathElements(n, strip)
 	n = path.Join(prefix, n)
+	// Junit assume "Java" style package names ("."-separated
+	// hierarchy) and Jenkins tries to render as such, which for
+	// packages like `github.com/foo/bar` can result in a display
+	// hierarchy of `github` → `com/foo/bar`.
+	//
+	// To avoid this convert all `.` into `-` (which is not
+	// normally allowed in a Go package name) and then all `/`
+	// into `.`. Thus `github.com/foo/bar` becomes `github-com.foo.bar`.
+	n = strings.Replace(n, ".", "-", -1)
+	n = strings.Replace(n, "/", ".", -1)
+
 	return n
 }
 

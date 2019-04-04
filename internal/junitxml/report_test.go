@@ -23,17 +23,17 @@ func TestMungePackageName(t *testing.T) {
 		prefix string
 		exp    string
 	}{
-		{name: "identity", exp: "a/b/c/d/e/f"},
-		{name: "strip1", strip: 1, exp: "b/c/d/e/f"},
-		{name: "strip3", strip: 3, exp: "d/e/f"},
+		{name: "identity", exp: "a.b.c.d.e.f"},
+		{name: "strip1", strip: 1, exp: "b.c.d.e.f"},
+		{name: "strip3", strip: 3, exp: "d.e.f"},
 		{name: "strip_most", strip: 5, exp: "f"},
 		{name: "strip_all", strip: 6, exp: ""},
 		{name: "strip_too_many", strip: 7, exp: ""},
-		{name: "prefix", prefix: "1/2/3", exp: "1/2/3/a/b/c/d/e/f"},
-		{name: "prefix_trailing", prefix: "1/2/3/", exp: "1/2/3/a/b/c/d/e/f"},
-		{name: "strip_and_prefix", strip: 3, prefix: "1/2/3", exp: "1/2/3/d/e/f"},
-		{name: "strip_all_prefix", strip: 6, prefix: "1/2/3", exp: "1/2/3"},
-		{name: "strip_too_many_prefix", strip: 7, prefix: "1/2/3", exp: "1/2/3"},
+		{name: "prefix", prefix: "1/2/3", exp: "1.2.3.a.b.c.d.e.f"},
+		{name: "prefix_trailing", prefix: "1/2/3/", exp: "1.2.3.a.b.c.d.e.f"},
+		{name: "strip_and_prefix", strip: 3, prefix: "1/2/3", exp: "1.2.3.d.e.f"},
+		{name: "strip_all_prefix", strip: 6, prefix: "1/2/3", exp: "1.2.3"},
+		{name: "strip_too_many_prefix", strip: 7, prefix: "1/2/3", exp: "1.2.3"},
 	} {
 
 		t.Run(tc.name, func(t *testing.T) {
@@ -61,7 +61,7 @@ func TestWrite(t *testing.T) {
 		err := Write(out, exec, 2, "")
 		assert.NilError(t, err)
 		// Replacement is anchored with " to avoid substitution in error messages.
-		expected := strings.Replace(expected, `"github.com/gotestyourself/`, `"`, -1)
+		expected := strings.Replace(expected, `"github-com.gotestyourself.`, `"`, -1)
 		assert.Equal(t, out.String(), expected)
 	})
 
@@ -70,9 +70,9 @@ func TestWrite(t *testing.T) {
 		err := Write(out, exec, 0, "a/b/c")
 		assert.NilError(t, err)
 		// Replacement is anchored with " to avoid substitution in error messages.
-		expected := strings.Replace(expected, `"github.com/gotestyourself/`, `"a/b/c/github.com/gotestyourself/`, -1)
+		expected := strings.Replace(expected, `"github-com.gotestyourself.`, `"a.b.c.github-com.gotestyourself.`, -1)
 		// Empty classnames also get prefixed.
-		expected = strings.Replace(expected, `classname=""`, `classname="a/b/c"`, -1)
+		expected = strings.Replace(expected, `classname=""`, `classname="a.b.c"`, -1)
 		assert.Equal(t, out.String(), expected)
 	})
 }
