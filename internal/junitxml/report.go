@@ -101,7 +101,11 @@ func generate(exec *testjson.Execution, strip int, prefix string) JUnitTestSuite
 	suites := JUnitTestSuites{}
 	for _, pkgname := range exec.Packages() {
 		pkg := exec.Package(pkgname)
-		pkgname = mungePackageName(pkgname, strip, prefix)
+		if x := os.Getenv("GOTESTSUM_SUITE"); x != "" {
+			pkgname = x
+		} else {
+			pkgname = mungePackageName(pkgname, strip, prefix)
+		}
 		junitpkg := JUnitTestSuite{
 			Name:       pkgname,
 			Tests:      pkg.Total,
