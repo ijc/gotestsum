@@ -99,22 +99,36 @@ func mungePackageName(n string, strip int, prefix string) string {
 func generate(exec *testjson.Execution, strip int, prefix string) JUnitTestSuites {
 	version := goVersion()
 	suites := JUnitTestSuites{}
-	for _, pkgname := range exec.Packages() {
-		pkg := exec.Package(pkgname)
-		if x := os.Getenv("GOTESTSUM_SUITE"); x != "" {
-			pkgname = x
-		} else {
-			pkgname = mungePackageName(pkgname, strip, prefix)
-		}
+	if pkgname := os.Getenv("GOTESTSUM_SUITE"); pkgname != "" {
 		junitpkg := JUnitTestSuite{
 			Name:       pkgname,
-			Tests:      pkg.Total,
-			Time:       formatDurationAsSeconds(pkg.Elapsed()),
 			Properties: packageProperties(version),
-			TestCases:  packageTestCases(pkg, strip, prefix),
-			Failures:   len(pkg.Failed),
 		}
+		var time time.Duration
+		for _, pkgname := range exec.Packages() {
+			pkg := exec.Package(pkgname)
+			junitpkg.Tests += pkg.Total
+			junitpkg.Failures += len(pkg.Failed)
+			time += pkg.Elapsed()
+			junitpkg.TestCases = append(junitpkg.TestCases, packageTestCases(pkg, strip, prefix)...)
+		}
+		junitpkg.Time = formatDurationAsSeconds(time)
 		suites.Suites = append(suites.Suites, junitpkg)
+
+	} else {
+		for _, pkgname := range exec.Packages() {
+			pkg := exec.Package(pkgname)
+			pkgname = mungePackageName(pkgname, strip, prefix)
+			junitpkg := JUnitTestSuite{
+				Name:       pkgname,
+				Tests:      pkg.Total,
+				Time:       formatDurationAsSeconds(pkg.Elapsed()),
+				Properties: packageProperties(version),
+				TestCases:  packageTestCases(pkg, strip, prefix),
+				Failures:   len(pkg.Failed),
+			}
+			suites.Suites = append(suites.Suites, junitpkg)
+		}
 	}
 	return suites
 }
